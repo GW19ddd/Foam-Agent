@@ -1,26 +1,26 @@
 # Foam-Agent    <a href="https://arxiv.org/abs/2505.04997"><img src="https://img.shields.io/badge/arXiv-2505.04997-b31b1b.svg" alt="Paper"></a>
 <p align="center">
-  <img src="overview.png" alt="Foam-Agent System Architecture" width="800">
+  <img src="overview.png" alt="Foam-Agent 系统架构" width="800">
 </p>
 
 <p align="center">
-    <em>An End-to-End Composable Multi-Agent Framework for Automating CFD Simulation in OpenFOAM</em>
+    <em>一个端到端可组合的多智能体框架，用于自动执行 OpenFOAM CFD 仿真</em>
 </p>
 
-**Foam-Agent** automates the entire **OpenFOAM**-based CFD simulation workflow from a single natural language prompt. It manages meshing, case setup, execution, error correction, and post-processing — dramatically lowering the expertise barrier for Computational Fluid Dynamics. Evaluated on [FoamBench](https://arxiv.org/abs/2509.20374) with 110 simulation tasks, our framework achieves an **100% success rate** with Claude Opus 4.6.
+**Foam-Agent** 可以从单个自然语言提示自动执行整个基于 **OpenFOAM** 的 CFD 仿真工作流程。它负责管理网格划分、案例设置、运行执行、错误校正和后处理——极大降低了计算流体力学（CFD）的专业门槛。在包含 110 个仿真任务的 [FoamBench](https://arxiv.org/abs/2509.20374) 基准评估中，我们的框架使用 Claude Opus 4.6 达到了 **100% 的成功率**。
 
-Visit [deepwiki.com/csml-rpi/Foam-Agent](https://deepwiki.com/csml-rpi/Foam-Agent) for a comprehensive introduction and to ask questions interactively.
+访问 [deepwiki.com/csml-rpi/Foam-Agent](https://deepwiki.com/csml-rpi/Foam-Agent) 获取详细介绍并交互式提问。
 
-## Key Features
+## 核心特性
 
-- **End-to-End Automation**: From meshing (including external Gmsh `.msh` files) to HPC job submission to ParaView/PyVista visualization — one prompt does it all.
-- **Multi-Agent Workflow**: Architect, Input Writer, Runner, and Reviewer agents collaborate through a LangGraph pipeline with automatic error correction (up to 25 iterations).
-- **RAG-Enhanced Generation**: Hierarchical FAISS indices built from OpenFOAM tutorials provide context-specific retrieval for accurate configuration file generation.
-- **Composable Service Architecture**: Core functions are exposed as MCP tools, enabling integration with Claude Code, Cursor, and other agentic systems.
+- **端到端自动化**：从网格划分（包括外部 Gmsh `.msh` 文件）到 HPC 作业提交，再到 ParaView/PyVista 可视化——一个提示即可完成所有操作。
+- **多智能体工作流**：Architect（架构师）、Input Writer（输入编写器）、Runner（运行器）和 Reviewer（审查器）智能体通过 LangGraph 流水线协作，具备自动错误校正功能（最多 25 次迭代）。
+- **RAG 增强生成**：基于 OpenFOAM 教程构建的分层 FAISS 索引，为准确的配置文件生成提供上下文相关的检索。
+- **可组合服务架构**：核心功能以 MCP 工具形式暴露，可与 Claude Code、Cursor 及其他智能体系统集成。
 
-## Quick Start
+## 快速开始
 
-### 1. Pull and run the Docker image
+### 1. 拉取并运行 Docker 镜像
 
 ```bash
 docker run -it \
@@ -30,13 +30,13 @@ docker run -it \
   leoyue123/foamagent
 ```
 
-The container comes with OpenFOAM v10, Conda, and all dependencies pre-installed.
+容器预装了 OpenFOAM v10、Conda 和所有依赖项。
 
-> For a specific release: `docker pull leoyue123/foamagent:v2.0.0`
+> 如需特定版本：`docker pull leoyue123/foamagent:v2.0.0`
 
-### 2. Write your prompt
+### 2. 编写提示词
 
-Edit `user_requirement.txt` inside the container:
+在容器内编辑 `user_requirement.txt`：
 
 ```text
 do a Reynolds-Averaged Simulation (RAS) pitzdaily simulation. Use PIMPLE algorithm.
@@ -46,26 +46,26 @@ fixed velocity of 10m/s at the inlet (left), zero gradient pressure at the outle
 0.01. Finaltime is 0.3. use nu value of 1e-5.
 ```
 
-### 3. Run
+### 3. 运行
 
 ```bash
 python foambench_main.py --output ./output --prompt_path ./user_requirement.txt
 ```
 
-That's it. Foam-Agent will plan the case, generate all OpenFOAM files, run the simulation, and fix errors automatically.
+就这样。Foam-Agent 会自动规划案例、生成所有 OpenFOAM 文件、运行仿真并自动修复错误。
 
-## Configuration
+## 配置
 
-All settings live in `src/config.py` with sensible defaults. Every setting can be overridden via environment variables — no need to edit files, especially useful for Docker and CI.
+所有设置在 `src/config.py` 中，并带有合理的默认值。每个设置都可以通过环境变量覆盖——无需编辑文件，特别适用于 Docker 和 CI 环境。
 
-### LLM Provider and Model
+### LLM 提供商与模型
 
-| Environment Variable | Purpose | Allowed Values |
+| 环境变量 | 用途 | 允许的值 |
 |---|---|---|
-| `FOAMAGENT_MODEL_PROVIDER` | LLM backend | `openai`, `openai-codex`, `anthropic`, `bedrock`, `ollama` |
-| `FOAMAGENT_MODEL_VERSION` | Model identifier | e.g., `gpt-5-mini`, `gpt-5.3-codex`, `claude-opus-4-6` |
+| `FOAMAGENT_MODEL_PROVIDER` | LLM 后端 | `openai`、`openai-codex`、`anthropic`、`bedrock`、`ollama` |
+| `FOAMAGENT_MODEL_VERSION` | 模型标识符 | 例如 `gpt-5-mini`、`gpt-5.3-codex`、`claude-opus-4-6` |
 
-Example:
+示例：
 ```bash
 docker run -it \
   -e FOAMAGENT_MODEL_PROVIDER=anthropic \
@@ -75,50 +75,50 @@ docker run -it \
   leoyue123/foamagent
 ```
 
-### Embedding Provider and Model
+### Embedding 提供商与模型
 
-| Environment Variable | Purpose | Allowed Values |
+| 环境变量 | 用途 | 允许的值 |
 |---|---|---|
-| `FOAMAGENT_EMBEDDING_PROVIDER` | Embedding backend | `openai`, `huggingface`, `ollama` |
-| `FOAMAGENT_EMBEDDING_MODEL` | Embedding model | e.g., `Qwen/Qwen3-Embedding-0.6B`, `text-embedding-3-small` |
+| `FOAMAGENT_EMBEDDING_PROVIDER` | Embedding 后端 | `openai`、`huggingface`、`ollama` |
+| `FOAMAGENT_EMBEDDING_MODEL` | Embedding 模型 | 例如 `Qwen/Qwen3-Embedding-0.6B`、`text-embedding-3-small` |
 
-Defaults to `huggingface` with `Qwen/Qwen3-Embedding-0.6B` (runs locally, no API key needed).
+默认使用 `huggingface` 和 `Qwen/Qwen3-Embedding-0.6B`（本地运行，无需 API 密钥）。
 
-### API Keys
+### API 密钥
 
-| Variable | When needed |
+| 变量 | 何时需要 |
 |---|---|
-| `OPENAI_API_KEY` | Using `openai` provider |
-| `ANTHROPIC_API_KEY` | Using `anthropic` provider |
-| AWS credentials | Using `bedrock` provider |
+| `OPENAI_API_KEY` | 使用 `openai` 提供商时 |
+| `ANTHROPIC_API_KEY` | 使用 `anthropic` 提供商时 |
+| AWS credentials | 使用 `bedrock` 提供商时 |
 
-### Input Writer Generation Mode
+### Input Writer 生成模式
 
-Set in `src/config.py` via `input_writer_generation_mode`:
+在 `src/config.py` 中通过 `input_writer_generation_mode` 设置：
 
-| Mode | Behavior | Best for |
+| 模式 | 行为 | 最适合 |
 |---|---|---|
-| `sequential_dependency` | Files generated in order with cross-file context | Expensive runs (HPC, long simulations) |
-| `parallel_no_context` | Files generated in parallel, no cross-file context | Fast local runs where retry is cheap |
+| `sequential_dependency` | 按顺序生成文件，附带跨文件上下文 | 成本较高的运行（HPC、长时间仿真） |
+| `parallel_no_context` | 并行生成文件，无跨文件上下文 | 快速本地运行，重试成本低 |
 
-### Recommended Models
+### 推荐模型
 
-| Framework | Model | Basic | Advanced |
-|---|---|---:|---:|
-| FoamAgent 2.0.0 (10 loops) | Opus 4.6 | 85.45% | 100% |
-| FoamAgent 2.0.0 (25 loops) | Opus 4.6 | 100% | 100% |
-| FoamAgent 2.0.0 (25 loops) | Sonnet 4.6 | 87.88% | 75.00% |
-| FoamAgent 2.0.0 (25 loops) | Haiku 4.6 | 54.55% | 37.50% |
-| FoamAgent 2.0.0 (25 loops) | gpt-5.4 | 45.45% | 75.00% |
-| FoamAgent 2.0.0 (25 loops) | gpt-5.3-codex | 54.55% | 62.50% |
+| 框架 | 模型 | 基础任务 | 高级任务 |
+|---|---|---|---:|---:|
+| FoamAgent 2.0.0 (10 轮循环) | Opus 4.6 | 85.45% | 100% |
+| FoamAgent 2.0.0 (25 轮循环) | Opus 4.6 | 100% | 100% |
+| FoamAgent 2.0.0 (25 轮循环) | Sonnet 4.6 | 87.88% | 75.00% |
+| FoamAgent 2.0.0 (25 轮循环) | Haiku 4.6 | 54.55% | 37.50% |
+| FoamAgent 2.0.0 (25 轮循环) | gpt-5.4 | 45.45% | 75.00% |
+| FoamAgent 2.0.0 (25 轮循环) | gpt-5.3-codex | 54.55% | 62.50% |
 
-We recommend **Anthropic Claude Opus 4.6** for best results.
+推荐使用 **Anthropic Claude Opus 4.6** 以获得最佳效果。
 
-## Advanced Usage
+## 高级用法
 
-### Custom Mesh Files
+### 自定义网格文件
 
-Foam-Agent supports external Gmsh `.msh` files (ASCII 2.2 format). Describe boundary conditions in your prompt and pass the mesh:
+Foam-Agent 支持外部 Gmsh `.msh` 文件（ASCII 2.2 格式）。在提示中描述边界条件并传入网格文件：
 
 ```bash
 python foambench_main.py \
@@ -127,7 +127,7 @@ python foambench_main.py \
   --custom_mesh_path ./tandem_wing.msh
 ```
 
-To mount a mesh file from the host into Docker:
+将主机上的网格文件挂载到 Docker 中：
 
 ```bash
 docker run -it \
@@ -137,21 +137,21 @@ docker run -it \
   leoyue123/foamagent
 ```
 
-### Skill / MCP Integration (Claude Code, Cursor, Windsurf, etc.)
+### Skill / MCP 集成（Claude Code、Cursor、Windsurf 等）
 
-Foam-Agent exposes its full CFD workflow as an **MCP server** — the universal protocol supported by Claude Code, Cursor, Windsurf, and other AI-powered tools. It also ships with a **Claude Code skill** (`/foam`) for one-command simulation runs.
+Foam-Agent 将其完整的 CFD 工作流以 **MCP 服务器** 的形式暴露——这是 Claude Code、Cursor、Windsurf 及其他 AI 驱动工具支持的通用协议。它同时附带一个 **Claude Code skill**（`/foam`），支持一键仿真运行。
 
-#### Quick Setup (Local Install)
+#### 快速配置（本地安装）
 
 ```bash
-# 1. Install (adds the foamagent-mcp command)
+# 1. 安装（添加 foamagent-mcp 命令）
 pip install -e .
 
-# 2. Register with your AI tool
+# 2. 注册到你的 AI 工具
 claude mcp add foamagent -- foamagent-mcp                # Claude Code
 ```
 
-For **Cursor**: open Settings > Features > MCP > Edit MCP Settings, and add:
+对于 **Cursor**：打开 Settings > Features > MCP > Edit MCP Settings，添加：
 
 ```json
 {
@@ -163,11 +163,11 @@ For **Cursor**: open Settings > Features > MCP > Edit MCP Settings, and add:
 }
 ```
 
-For **Windsurf / other MCP-compatible tools**, use the same JSON config above.
+对于 **Windsurf / 其他 MCP 兼容工具**，使用上述相同的 JSON 配置。
 
-#### Quick Setup (Docker)
+#### 快速配置（Docker）
 
-If running in Docker, start the HTTP server and point your MCP client at it:
+如果在 Docker 中运行，启动 HTTP 服务器并将 MCP 客户端指向它：
 
 ```bash
 docker run -it \
@@ -177,7 +177,7 @@ docker run -it \
   foamagent-mcp --transport http --host 0.0.0.0 --port 7860
 ```
 
-Then configure your MCP client:
+然后配置你的 MCP 客户端：
 
 ```json
 {
@@ -189,42 +189,41 @@ Then configure your MCP client:
 }
 ```
 
-> If running Docker on a remote server, ensure port 7860 is reachable (e.g., via SSH port forwarding or `-p 7860:7860`).
+> 如果在远程服务器上运行 Docker，请确保 7860 端口可访问（例如通过 SSH 端口转发或 `-p 7860:7860`）。
 
-#### Available MCP Tools
+#### 可用的 MCP 工具
 
-Foam-Agent generates output following **Foundation OpenFOAM v10** conventions by default. If
-`FOAMAGENT_OPENFOAM_FORK=esi` is set, generated input files are translated to ESI OpenFOAM
-(`openfoam.com`) naming and dictionary conventions on a best-effort basis before they are returned.
-The run/review/fix workflow is still primarily validated with Foundation OpenFOAM v10.
+Foam-Agent 默认按照 **Foundation OpenFOAM v10** 规范生成输出。如果设置了
+`FOAMAGENT_OPENFOAM_FORK=esi`，生成的输入文件将在返回前尽量转换为 ESI OpenFOAM
+（`openfoam.com`）的命名和字典规范。运行/审查/修复工作流仍然主要在 Foundation OpenFOAM v10 中验证。
 
-| Tool | Description |
-|------|-------------|
-| `plan` | Analyze requirements and plan simulation structure using Foundation v10 references |
-| `input_writer` | Generate OpenFOAM configuration files; optionally translate generated files when `FOAMAGENT_OPENFOAM_FORK=esi` |
-| `run` | Execute Allrun script locally with error collection; primarily validated with Foundation OpenFOAM v10 |
-| `review` | Analyze simulation errors and suggest fixes via LLM using Foundation v10 references |
-| `apply_fixes` | Rewrite OpenFOAM files based on review analysis; ESI cases remain best-effort |
-| `visualization` | Generate PyVista visualization of simulation results |
+| 工具 | 描述 |
+|------|------|
+| `plan` | 分析需求并使用 Foundation v10 参考规划仿真结构 |
+| `input_writer` | 生成 OpenFOAM 配置文件；当 `FOAMAGENT_OPENFOAM_FORK=esi` 时可选择转换生成的文件 |
+| `run` | 本地执行 Allrun 脚本并收集错误信息；主要在 Foundation OpenFOAM v10 上验证 |
+| `review` | 通过 LLM 使用 Foundation v10 参考分析仿真错误并建议修复方案 |
+| `apply_fixes` | 根据审查分析重写 OpenFOAM 文件；ESI 案例仍然是尽力而为 |
+| `visualization` | 生成仿真结果的 PyVista 可视化 |
 
 #### Claude Code Skill
 
-For Claude Code users who clone this repo, a `/foam` skill is included in `.claude/skills/foam.md`. It orchestrates the MCP tools into a complete workflow:
+对于克隆了本仓库的 Claude Code 用户，`.claude/skills/foam.md` 中包含一个 `/foam` skill。它将 MCP 工具编排为完整的工作流：
 
 ```
 /foam Simulate lid-driven cavity flow at Re=1000
 ```
 
-This triggers the full pipeline: plan -> generate files -> run -> review/fix loop -> visualize.
+这将触发完整流程：规划 -> 生成文件 -> 运行 -> 审查/修复循环 -> 可视化。
 
-### Codex OAuth Sign-in (No API Key)
+### Codex OAuth 登录（无需 API 密钥）
 
-If you have a ChatGPT/Codex subscription, you can authenticate via OAuth instead of an API key:
+如果你有 ChatGPT/Codex 订阅，可以通过 OAuth 认证而非 API 密钥：
 
-1. Install the [Codex CLI](https://github.com/openai/codex) on your host machine.
-2. Run `codex login` and choose **"Sign in with ChatGPT"**.
-3. Verify the token cache exists: `ls ~/.codex/auth.json`
-4. Mount it into the container:
+1. 在宿主机上安装 [Codex CLI](https://github.com/openai/codex)。
+2. 运行 `codex login` 并选择 **"Sign in with ChatGPT"**。
+3. 验证 Token 缓存存在：`ls ~/.codex/auth.json`
+4. 将其挂载到容器中：
 
 ```bash
 docker run -it \
@@ -235,14 +234,14 @@ docker run -it \
   leoyue123/foamagent
 ```
 
-Foam-Agent searches for OAuth tokens at (first match wins):
+Foam-Agent 在以下位置搜索 OAuth Token（优先使用先匹配的）：
 - `$CODEX_HOME/auth.json`
 - `~/.codex/auth.json`
 - `~/.clawdbot/agents/main/agent/auth-profiles.json`
 
-> Security note: `auth.json` contains access tokens. Treat it like a password.
+> 安全提示：`auth.json` 包含访问令牌，请像保护密码一样保护它。
 
-### Manual Installation (Without Docker)
+### 手动安装（不使用 Docker）
 
 ```bash
 git clone https://github.com/csml-rpi/Foam-Agent.git
@@ -251,19 +250,19 @@ conda env create -n FoamAgent -f environment.yml
 conda activate FoamAgent
 ```
 
-You also need **Foundation OpenFOAM v10** ([openfoam.org](https://openfoam.org)) installed and sourced for the default, fully validated runtime path. ESI OpenFOAM (`openfoam.com`) file generation is available as best-effort translation by setting `FOAMAGENT_OPENFOAM_FORK=esi`, but ESI execution and repair loops should be verified per case. Follow the [official Foundation v10 installation guide](https://openfoam.org/version/10/) and verify with:
+你还需要安装并加载 **Foundation OpenFOAM v10**（[openfoam.org](https://openfoam.org)）作为默认的、经过充分验证的运行环境。ESI OpenFOAM（`openfoam.com`）的文件生成可通过设置 `FOAMAGENT_OPENFOAM_FORK=esi` 进行尽力而为的转换，但 ESI 的运行和修复循环应逐案例验证。按照[官方 Foundation v10 安装指南](https://openfoam.org/version/10/)操作，并验证：
 
 ```bash
-echo $WM_PROJECT_DIR   # should print e.g. /opt/openfoam10
+echo $WM_PROJECT_DIR   # 应输出例如 /opt/openfoam10
 ```
 
-Then run:
+然后运行：
 
 ```bash
 python foambench_main.py --output ./output --prompt_path ./user_requirement.txt
 ```
 
-### Building the Docker Image from Source
+### 从源码构建 Docker 镜像
 
 ```bash
 git clone https://github.com/csml-rpi/Foam-Agent.git
@@ -275,26 +274,28 @@ docker run -it \
   foamagent:latest
 ```
 
-## Troubleshooting
+## 常见问题排查
 
-| Problem | Solution |
+| 问题 | 解决方案 |
 |---|---|
-| OpenFOAM environment not found | Ensure the intended OpenFOAM bashrc is sourced. The default validated path is Foundation OpenFOAM v10 ([openfoam.org](https://openfoam.org)); ESI OpenFOAM requires `FOAMAGENT_OPENFOAM_FORK=esi` and per-case verification |
-| Database files missing | Ensure the full repo is cloned including `database/`. Docker image has these pre-built |
-| Missing dependencies | `conda env update -n FoamAgent -f environment.yml --prune` |
-| API key errors | Ensure the appropriate key is set (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.) |
-| MCP connection errors | Verify the container is running and port 7860 is accessible |
+| 找不到 OpenFOAM 环境 | 确保已加载对应的 OpenFOAM bashrc。默认验证路径为 Foundation OpenFOAM v10（[openfoam.org](https://openfoam.org)）；ESI OpenFOAM 需要设置 `FOAMAGENT_OPENFOAM_FORK=esi` 并逐案例验证 |
+| 数据库文件缺失 | 确保克隆了完整仓库，包括 `database/` 目录。Docker 镜像已预构建这些文件 |
+| 缺少依赖项 | `conda env update -n FoamAgent -f environment.yml --prune` |
+| API 密钥错误 | 确保设置了正确的密钥（`OPENAI_API_KEY`、`ANTHROPIC_API_KEY` 等） |
+| MCP 连接错误 | 验证容器正在运行且 7860 端口可访问 |
 
-> **OpenFOAM version:** Foam-Agent targets **Foundation OpenFOAM v10** ([openfoam.org](https://openfoam.org)) by default. With `FOAMAGENT_OPENFOAM_FORK=esi`, generated files are translated to ESI OpenFOAM ([openfoam.com](https://openfoam.com), e.g., v2312, v2406, v2512) conventions on a best-effort basis. The Docker image includes Foundation OpenFOAM v10 pre-installed.
+> **OpenFOAM 版本：** Foam-Agent 默认面向 **Foundation OpenFOAM v10**（[openfoam.org](https://openfoam.org)）。设置 `FOAMAGENT_OPENFOAM_FORK=esi` 后，生成的文件将尽力转换为 ESI OpenFOAM（[openfoam.com](https://openfoam.com)，例如 v2312、v2406、v2512）规范。Docker 镜像预装了 Foundation OpenFOAM v10。
 
-## Community
+## 社区
 
-### Join the WeChat community
+### 加入微信社区
 
-Chinese-speaking users can join the Foam-Agent WeChat community by adding the volunteer's WeChat account: **ZDSJTUCFD**. The volunteer will invite you to the group.
+中文用户可以通过添加志愿者的微信号 **ZDSJTUCFD** 加入 Foam-Agent 微信社区。志愿者会邀请您进群。
 
-## Citation
-If you use Foam-Agent in your research, please cite our paper:
+## 引用
+
+如果您在研究中使用了 Foam-Agent，请引用我们的论文：
+
 ```bibtex
 @article{yue2025foam,
   title={Foam-Agent: Towards Automated Intelligent CFD Workflows},
@@ -311,9 +312,8 @@ If you use Foam-Agent in your research, please cite our paper:
     url={https://openreview.net/forum?id=kTcH1MnkjY},
     note={}
 }
-
 ```
 
-## Star History
+## Star 历史
 
 [![Star History Chart](https://api.star-history.com/svg?repos=csml-rpi/Foam-Agent&type=timeline&legend=top-left)](https://www.star-history.com/#csml-rpi/Foam-Agent&type=timeline&legend=top-left)
