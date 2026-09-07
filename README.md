@@ -63,7 +63,9 @@ python foambench_main.py --output ./output --prompt_path ./user_requirement.txt
 | 环境变量 | 用途 | 允许的值 |
 |---|---|---|
 | `FOAMAGENT_MODEL_PROVIDER` | LLM 后端 | `openai`、`openai-codex`、`anthropic`、`bedrock`、`ollama` |
-| `FOAMAGENT_MODEL_VERSION` | 模型标识符 | 例如 `gpt-5-mini`、`gpt-5.3-codex`、`claude-opus-4-6` |
+| `FOAMAGENT_MODEL_VERSION` | 模型标识符 | 例如 `gpt-5-mini`、`gpt-5.3-codex`、`claude-opus-4-6`、`qwen2.5-coder:7b` |
+| `FOAMAGENT_OLLAMA_HOST` | Ollama 服务地址（仅 `ollama`） | 默认 `http://localhost:11434`，可指向远程主机 |
+| `FOAMAGENT_OLLAMA_NUM_CTX` | Ollama 上下文窗口（仅 `ollama`） | 默认 `32768`，须 ≤ 模型实际支持窗口 |
 
 示例：
 ```bash
@@ -74,6 +76,30 @@ docker run -it \
   -p 7860:7860 \
   leoyue123/foamagent
 ```
+
+### Ollama 本地/远程部署
+
+无需 API 密钥，完全本地推理：
+
+```bash
+# 1. 安装 Ollama（https://ollama.com/download）并拉取模型
+ollama pull qwen2.5-coder:7b        # 更省显存；写 OpenFOAM 复合字典建议 14b 及以上
+ollama pull qwen3-embedding:4b      # 本地 embedding（或保持默认 huggingface）
+
+# 2. 启用 ollama 后端（Foam-Agent 会自动探测并拉起本地 ollama serve）
+export FOAMAGENT_MODEL_PROVIDER=ollama
+export FOAMAGENT_MODEL_VERSION=qwen2.5-coder:7b
+python foambench_main.py --output ./output --prompt_path ./user_requirement.txt
+```
+
+要点：
+
+- **服务地址**：默认连 `http://localhost:11434`。Ollama 装在另一台机器（或 WSL `mirrored` 网络直通 Windows 侧）时用 `FOAMAGENT_OLLAMA_HOST` 指向，例如 `export FOAMAGENT_OLLAMA_HOST=http://192.168.x.x:11434`。
+- **自动启动**：连不上时先探测，若目标为本地地址且 PATH 中有 `ollama` 则自动 `ollama serve` 并等待就绪；否则给出可操作的报错（而不是静默失败）。
+- **结构化输出兼容**：本地小模型（7B/8B 级）对 tool-call structured output 不可靠，Foam-Agent 自动走 JSON prompt fallback；若模型回显 schema 或产出非法 JSON，会把校验错误回喂模型自纠错（最多两轮）。
+- **离线安全**：Ollama 后端无内置 tokenizer，token 统计改用字符估算，不会尝试联网下载 gpt2 tokenizer。
+- **上下文窗口**：`FOAMAGENT_OLLAMA_NUM_CTX` 默认 32768；仅在模型确实支持更大窗口时调大（旧版本固定 131072，会让窗口较小的本地模型直接报错）。
+- **能力提示**：本地 7B 级模型可以稳定跑通 规划→执行→评审→修复 全链路，但"从零生成 OpenFOAM 复合字典"（如 `blockMeshDict`）质量有限；建议使用 ≥14B 模型，或用 `--reuse_generated_dir` 复用已验证案例文件后再运行（运行/修复阶段由本地模型驱动，质量有保障）。
 
 ### Embedding 提供商与模型
 

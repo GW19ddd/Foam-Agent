@@ -4,7 +4,7 @@ import subprocess
 import os
 import signal
 from typing import Optional, Any, Type, TypedDict, List, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from langchain.chat_models import init_chat_model
 from langchain_community.vectorstores import FAISS
 from langchain_openai.embeddings import OpenAIEmbeddings
@@ -523,23 +523,18 @@ class LLMService:
                 stream=True,
             )
         elif self.model_provider.lower() == "ollama":
-            try:
-                response = requests.get("http://localhost:11434/api/version", timeout=2)
-                # If request successful, service is running
-            except requests.exceptions.RequestException:
-                print("Ollama is not running, starting it...")
-                subprocess.Popen(["ollama", "serve"], 
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-                # Wait for service to start
-                time.sleep(5)  # Give it 3 seconds to initialize
-
+            # Host configurable via env (supports remote Ollama servers).
+            ollama_host = (os.getenv("FOAMAGENT_OLLAMA_HOST") or "http://localhost:11434").rstrip("/")
+            # Default context window is 32k; raise via FOAMAGENT_OLLAMA_NUM_CTX only if the
+            # local model actually supports a larger context.
+            num_ctx = int(os.getenv("FOAMAGENT_OLLAMA_NUM_CTX", "32768"))
+            self._ensure_ollama_service(ollama_host)
             self.llm = ChatOllama(
-                model=self.model_version, 
+                model=self.model_version,
                 temperature=self.temperature,
                 num_predict=-1,
-                num_ctx=131072,
-                base_url="http://localhost:11434"
+                num_ctx=num_ctx,
+                base_url=ollama_host,
             )
         elif self.model_provider.lower() == "deepseek":
             from langchain_openai import ChatOpenAI
@@ -558,6 +553,45 @@ class LLMService:
         else:
             raise ValueError(f"{self.model_provider} is not a supported model_provider")
     
+    @staticmethod
+    def _ensure_ollama_service(host: str, timeout: float = 60.0) -> None:
+        """Probe the Ollama service; try to auto-start a local one if unreachable."""
+
+        def _probe() -> bool:
+            try:
+                return requests.get(f"{host}/api/version", timeout=2).ok
+            except requests.exceptions.RequestException:
+                return False
+
+        if _probe():
+            return
+
+        # Only attempt auto-start for the default local host.
+        if host.startswith(("http://localhost", "http://127.0.0.1")):
+            if shutil.which("ollama") is None:
+                raise RuntimeError(
+                    "Ollama is not installed (no 'ollama' binary on PATH) and not reachable at "
+                    f"{host}. Install Ollama from https://ollama.com/download, or point "
+                    "FOAMAGENT_OLLAMA_HOST at a running (possibly remote) Ollama server."
+                )
+            print("Ollama is not running, starting it...")
+            subprocess.Popen(
+                ["ollama", "serve"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            raise RuntimeError(
+                f"Ollama not reachable at {host}. Check the FOAMAGENT_OLLAMA_HOST setting."
+            )
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if _probe():
+                return
+            time.sleep(1)
+        raise RuntimeError(f"Ollama did not become ready within {timeout:.0f}s at {host}.")
+
     def _is_throttling_error(self, error: Exception) -> bool:
         """
         Check if an exception is a throttling-related error.
@@ -618,6 +652,20 @@ class LLMService:
         
         return retry_count
 
+    def _count_tokens(self, text: str) -> int:
+        """Count tokens without requiring a downloadable tokenizer.
+
+        ChatOllama has no bundled tokenizer, so langchain falls back to downloading
+        the gpt2 tokenizer from HuggingFace -- which fails in offline environments.
+        For local/remote Ollama models we use a rough char-based estimate instead;
+        other providers keep their native get_num_tokens, falling back to the
+        estimate only if it is unavailable.
+        """
+        try:
+            return int(self.llm.get_num_tokens(text))
+        except Exception:
+            return max(1, len(text) // 4)
+
     def invoke(self,
               user_prompt: str, 
               system_prompt: Optional[str] = None, 
@@ -645,30 +693,57 @@ class LLMService:
         # Calculate prompt tokens
         prompt_tokens = 0
         for message in messages:
-            prompt_tokens += self.llm.get_num_tokens(message["content"])
+            prompt_tokens += self._count_tokens(message["content"])
         
         retry_count = 0
         while True:
             try:
                 if pydantic_obj:
-                    if self.model_provider.lower() == "deepseek":
-                        # DeepSeek thinking mode does not support response_format,
-                        # so with_structured_output fails. Use JSON prompt fallback.
+                    if self.model_provider.lower() in ("deepseek", "ollama"):
+                        # DeepSeek thinking mode does not support response_format, and local
+                        # Ollama models are unreliable at tool-call structured output, so
+                        # both providers share this JSON prompt fallback.
                         schema = pydantic_obj.model_json_schema()
                         json_instruction = (
-                            "Return ONLY valid JSON (no markdown, no extra text) matching this schema:\n"
+                            "Respond with ONLY the requested data as a single valid JSON object "
+                            "(no markdown, no commentary, no extra text). "
+                            "IMPORTANT: fill in and output the data itself -- do NOT echo the "
+                            "schema definition back. The schema below only describes the fields.\n"
+                            "Expected JSON schema:\n"
                             + str(schema)
                         )
                         json_messages = list(messages)
                         json_messages.append({"role": "user", "content": json_instruction})
-                        raw_response = self.llm.invoke(json_messages)
-                        raw_text = raw_response.content
-                        # Strip markdown fences if present
-                        t = raw_text.strip()
-                        if t.startswith("```"):
-                            t = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", t)
-                            t = re.sub(r"\n?```\s*$", "", t).strip()
-                        response = pydantic_obj.model_validate_json(t)
+
+                        # Local/weak models sometimes echo the schema or emit invalid JSON;
+                        # feed exact validation errors back for up to two self-correction rounds.
+                        response = None
+                        for attempt in range(3):
+                            raw_response = self.llm.invoke(json_messages)
+                            raw_text = raw_response.content
+                            # Strip markdown fences if present
+                            t = raw_text.strip()
+                            if t.startswith("```"):
+                                t = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", t)
+                                t = re.sub(r"\n?```\s*$", "", t).strip()
+                            try:
+                                response = pydantic_obj.model_validate_json(t)
+                                break
+                            except ValidationError as e:
+                                if attempt == 2:
+                                    raise
+                                json_messages += [
+                                    {"role": "assistant", "content": raw_text},
+                                    {
+                                        "role": "user",
+                                        "content": (
+                                            "Your previous output was invalid. Fix ONLY the "
+                                            "errors below and output the corrected JSON data "
+                                            "(still no schema echo, no markdown):\n"
+                                            + str(e)
+                                        ),
+                                    },
+                                ]
                     else:
                         structured_llm = self.llm.with_structured_output(pydantic_obj)
                         response = structured_llm.invoke(messages)
@@ -678,7 +753,7 @@ class LLMService:
 
                 # Calculate completion tokens
                 response_content = str(response)
-                completion_tokens = self.llm.get_num_tokens(response_content)
+                completion_tokens = self._count_tokens(response_content)
                 total_tokens = prompt_tokens + completion_tokens
                 
                 # Update statistics
